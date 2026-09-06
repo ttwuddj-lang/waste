@@ -129,9 +129,17 @@ async def welcome_new_members(_, m: types.Message):
                 reply_markup=keyboard,
                 quote=True,
             )
-        except Exception:
-            # Do not break other welcome messages if Telegram rejects one user/photo.
-            continue
+        except Exception as exc:
+            # If the remote photo URL is rejected, still send the welcome text.
+            try:
+                await app.send_message(
+                    chat_id=m.chat.id,
+                    text=caption,
+                    reply_markup=keyboard,
+                    quote=True,
+                )
+            except Exception:
+                pass
 
 
 async def _vc_participants_updated(group_call, participants):
@@ -139,7 +147,13 @@ async def _vc_participants_updated(group_call, participants):
     try:
         chat_id = get_peer_id(group_call.chat_peer)
     except Exception:
-        return
+        # PyTgCalls exposes chat_peer as a Telegram peer; handle all peer forms.
+        peer = getattr(group_call, 'chat_peer', None)
+        chat_id = getattr(peer, 'channel_id', None) or getattr(peer, 'chat_id', None) or getattr(peer, 'user_id', None)
+        if chat_id and getattr(peer, 'channel_id', None):
+            chat_id = int(f'-100{peer.channel_id}')
+        if not chat_id:
+            return
 
     if not await db.get_vc_logs(chat_id):
         return
@@ -188,13 +202,32 @@ async def _vc_participants_updated(group_call, participants):
                 text=text,
                 reply_markup=keyboard,
             )
-        except Exception:
-            continue
+        except Exception as exc:
+            try:
+                from AloneX import logger
+                logger.exception('VC log handler failed: %s', exc)
+            except Exception:
+                pass
 
 
-# PyTgCalls exposes participant-list updates on each active assistant client.
-for _group_call_client in getattr(anon, 'clients', []):
+def register_vc_log_handlers():
+    """Register the VC participant callback on every running PyTgCalls client."""
+    registered = 0
+    for client in getattr(anon, 'clients', []):
+        try:
+            client.on_participant_list_updated(_vc_participants_updated)
+            registered += 1
+        except Exception as exc:
+            try:
+                from AloneX import logger
+                logger.exception('Could not register VC log handler: %s', exc)
+            except Exception:
+                pass
     try:
-        _group_call_client.on_participant_list_updated(_vc_participants_updated)
+        from AloneX import logger
+        logger.info('VC log handler registered on %s PyTgCalls client(s).', registered)
     except Exception:
         pass
+
+
+register_vc_log_handlers()
