@@ -27,6 +27,7 @@ class MongoDB:
         self.notified = []
         self.vc_logs = {}
         self.welcome = {}
+        self.autoplay = {}
         self.cache = self.db.cache
         self.logger = False
 
@@ -288,6 +289,21 @@ class MongoDB:
         await self.chatsdb.update_one(
             {"_id": chat_id},
             {"$set": {"admin_play": not remove}},
+            upsert=True,
+        )
+
+    # AUTO PLAY METHODS
+    async def get_autoplay(self, chat_id: int) -> bool:
+        if chat_id not in self.autoplay:
+            doc = await self.chatsdb.find_one({"_id": chat_id})
+            self.autoplay[chat_id] = bool(doc.get("autoplay", False)) if doc else False
+        return self.autoplay[chat_id]
+
+    async def set_autoplay(self, chat_id: int, status: bool) -> None:
+        self.autoplay[chat_id] = status
+        await self.chatsdb.update_one(
+            {"_id": chat_id},
+            {"$set": {"autoplay": status}},
             upsert=True,
         )
 

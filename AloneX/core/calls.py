@@ -88,7 +88,7 @@ class TgCall(PyTgCalls):
                     media.duration,
                     media.user,
                 )
-                keyboard = buttons.controls(chat_id)
+                keyboard = buttons.controls(chat_id, autoplay=await db.get_autoplay(chat_id))
                 try:
                     await message.edit_media(
                         media=InputMediaPhoto(
@@ -132,17 +132,27 @@ class TgCall(PyTgCalls):
 
 
     async def play_next(self, chat_id: int) -> None:
+        # If the queue has no next item, optionally create one from the
+        # current song's YouTube search context before removing the current item.
+        current = queue.get_current(chat_id)
+        if current and await db.get_autoplay(chat_id) and queue.get_next(chat_id, check=True) is None:
+            related = await yt.related(current, video=current.video)
+            if related:
+                related.user = current.user
+                queue.add(chat_id, related)
+
         media = queue.get_next(chat_id)
-        try:
-            if media.message_id:
-                await app.delete_messages(
-                    chat_id=chat_id,
-                    message_ids=media.message_id,
-                    revoke=True,
-                )
-                media.message_id = 0
-        except:
-            pass
+        if media is not None:
+            try:
+                if media.message_id:
+                    await app.delete_messages(
+                        chat_id=chat_id,
+                        message_ids=media.message_id,
+                        revoke=True,
+                    )
+                    media.message_id = 0
+            except Exception:
+                pass
 
         if not media:
             return await self.stop(chat_id)
