@@ -20,6 +20,8 @@ async def autoplay_command(_, m: types.Message):
         )
     enabled = m.command[1].lower() == 'on'
     await db.set_autoplay(m.chat.id, enabled)
+    from AloneX import logger
+    logger.info("Auto Play set to %s in chat %s by %s", enabled, m.chat.id, m.from_user.id)
     await m.reply_text(
         f'{PREMIUM_SPARKLE} <b>Auto Play:</b> <code>{"ON ✓" if enabled else "OFF ✕"}</code>',
         quote=True,

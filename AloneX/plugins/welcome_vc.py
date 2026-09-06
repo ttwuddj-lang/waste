@@ -4,7 +4,7 @@ import asyncio
 from pyrogram import enums, filters, types
 from pyrogram.enums import ButtonStyle
 
-from AloneX import anon, app, db, lang, userbot
+from AloneX import anon, app, db, lang, userbot, logger
 from AloneX.helpers import admin_check
 
 PREMIUM_SPARKLE = '<emoji id=6269085886177087845>✨</emoji>'
@@ -151,23 +151,21 @@ async def _get_auth(chat_id, user_id):
 
 async def _vc_participants_updated(group_call, participants):
     """Handle only fresh VC joins. PyTgCalls sends only changed participants."""
-    chat_id = None
-
-    # PyTgCalls exposes the Telegram peer on GroupCall. This is the most
-    # reliable source across the versions used by this project.
-    peer = getattr(group_call, "chat_peer", None)
-    if peer is not None:
-        try:
-            from pyrogram.utils import get_peer_id
-            chat_id = get_peer_id(peer)
-        except Exception:
-            pass
-
-    # Compatibility fallbacks.
-    if chat_id is None:
-        chat_id = getattr(group_call, "chat_id", None)
+    # PyTgCalls exposes the Telegram chat id on the group-call object in
+    # supported versions. Prefer it over raw peer conversion.
+    chat_id = getattr(group_call, "chat_id", None)
     if chat_id is None:
         chat_id = getattr(group_call, "_chat_id", None)
+
+    if chat_id is None:
+        peer = getattr(group_call, "chat_peer", None)
+        if peer is not None:
+            try:
+                from pyrogram.utils import get_peer_id
+                chat_id = get_peer_id(peer)
+            except Exception:
+                pass
+
     try:
         chat_id = int(chat_id)
     except (TypeError, ValueError):
@@ -250,21 +248,19 @@ async def _vc_participants_updated(group_call, participants):
 
 def register_vc_log_handlers():
     registered = 0
-    for client in getattr(anon, 'clients', []):
+    clients = getattr(anon, "clients", [])
+    for client in clients:
         try:
-            if getattr(client, '_alone_vc_registered', False):
+            if getattr(client, "_alone_vc_registered", False):
+                registered += 1
                 continue
-            client.on_participant_list_updated(_vc_participants_updated)
+            handler = getattr(client, "on_participant_list_updated", None)
+            if not callable(handler):
+                logger.error("PyTgCalls client has no participant-list callback API: %r", type(client))
+                continue
+            handler(_vc_participants_updated)
             client._alone_vc_registered = True
             registered += 1
         except Exception:
-            try:
-                from AloneX import logger
-                logger.exception('VC participant listener registration failed')
-            except Exception:
-                pass
-    try:
-        from AloneX import logger
-        logger.info('VC participant listener registered: %s', registered)
-    except Exception:
-        pass
+            logger.exception("VC participant listener registration failed")
+    logger.info("VC participant listener registered: %s/%s", registered, len(clients))
