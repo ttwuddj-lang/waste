@@ -188,4 +188,11 @@ class TgCall(PyTgCalls):
             await client.start()
             self.clients.append(client)
             await self.decorators(client)
+            # Register VC participant listener only after PyTgCalls clients exist.
+            try:
+                from AloneX.plugins.welcome_vc import register_vc_log_handlers
+                register_vc_log_handlers()
+            except Exception:
+                # Plugin may not be imported yet; __main__ registers it again after loading plugins.
+                pass
         logger.info("PyTgCalls client(s) started.")
