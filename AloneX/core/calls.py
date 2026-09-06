@@ -198,13 +198,7 @@ class TgCall(PyTgCalls):
             await client.start()
             self.clients.append(client)
             await self.decorators(client)
-            # Register directly on the newly started PyTgCalls client.
-            # This guarantees the listener is attached even before plugins are loaded.
-            try:
-                from AloneX.plugins.welcome_vc import _vc_participants_updated
-                client.on_participant_list_updated(_vc_participants_updated)
-                client._alone_vc_registered = True
-                logger.info("VC participant listener attached to assistant %s", getattr(ub, "id", "unknown"))
-            except Exception:
-                logger.exception("Failed to attach VC participant listener")
+            # VC participant listeners are registered after all plugins load
+            # in AloneX.__main__.py. Keeping registration there avoids the
+            # plugin import-order race during startup.
         logger.info("PyTgCalls client(s) started.")
