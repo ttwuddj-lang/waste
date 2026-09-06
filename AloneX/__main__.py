@@ -21,6 +21,16 @@ async def main():
 
     for module in all_modules:
         importlib.import_module(f"AloneX.plugins.{module}")
+
+    # Register the VC participant listener only after all plugins are loaded.
+    # This avoids import-order issues and also guarantees the callback is
+    # attached to every running PyTgCalls client.
+    try:
+        from AloneX.plugins.welcome_vc import register_vc_log_handlers
+        register_vc_log_handlers()
+    except Exception:
+        logger.exception("Failed to register VC participant listener.")
+
     logger.info(f"Loaded {len(all_modules)} modules.")
 
     if config.COOKIES_URL:
