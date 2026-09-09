@@ -7,11 +7,11 @@ from pyrogram.enums import ButtonStyle
 from AloneX import anon, app, db, lang, userbot, logger
 from AloneX.helpers import admin_check
 
-PREMIUM_SPARKLE = '<emoji id=6269085886177087845>✨</emoji>'
+PREMIUM_SPARKLE = '✨'
 PREMIUM_FIRE = '<emoji id=6086714986309097798>🔥</emoji>'
 PREMIUM_HEART = '<emoji id=6113685078825505075>🤍</emoji>'
 
-WELCOME_PHOTO = 'https://kommodo.ai/i/eEnbSyk87gV2lAiXwSFx'
+WELCOME_PHOTO = 'https://kommodo.ai/i/u3QQC5mIToi00chxPvBW'
 WELCOME_ADD_URL = (
     'http://t.me/Adamusiicbot?startgroup=s&admin='
     'delete_messages+manage_video_chats+pin_messages+invite_users'
