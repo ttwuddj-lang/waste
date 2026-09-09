@@ -25,9 +25,18 @@ class Config:
         self.AUTO_END: bool = getenv("AUTO_END", False)
         self.AUTO_LEAVE: bool = getenv("AUTO_LEAVE", False)
         self.VIDEO_PLAY: bool = getenv("VIDEO_PLAY", True)
+        # Automatically find and play another YouTube track when the queue becomes empty.
+        self.AUTO_PLAY: bool = getenv("AUTO_PLAY", "True").lower() in ("1", "true", "yes", "on")
+        self.WELCOME_ENABLED: bool = getenv("WELCOME_ENABLED", "True").lower() in ("1", "true", "yes", "on")
+        self.WELCOME_IMG = getenv("WELCOME_IMG", "")
+        self.WELCOME_TEXT = getenv(
+            "WELCOME_TEXT",
+            "👋 <b>Welcome {mention}!</b>\n\n🎵 Enjoy the music with <b>{app_name}</b>."
+        )
+        self.VC_JOIN_NOTIFY: bool = getenv("VC_JOIN_NOTIFY", "True").lower() in ("1", "true", "yes", "on")
 
         self.QUEUE_LIMIT = int(getenv("QUEUE_LIMIT", "50"))
-        self.DURATION_LIMIT = int(getenv("DURATION_LIMIT", "5400"))
+        self.DURATION_LIMIT = int(getenv("DURATION_LIMIT", "10800"))
         self.PLAYLIST_LIMIT = int(getenv("PLAYLIST_LIMIT", "20"))
         self.COOKIES_URL = [
             url for url in getenv("COOKIES_URL", "").split(" ")
