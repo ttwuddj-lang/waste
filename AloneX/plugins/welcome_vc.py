@@ -76,7 +76,7 @@ async def _send_welcome(chat_id, user):
     username = f'@{user.username}' if user.username else 'None'
     caption = (
         '<blockquote>'
-        f'{PREMIUM_SPARKLE} <b>𝐖ᴇʟᴄᴏᴍᴇ 𝐓ᴏ Me .</b> {PREMIUM_HEART}{PREMIUM_FIRE}\n'
+        f'{PREMIUM_SPARKLE} <b>𝐖ᴇʟᴄᴏᴍᴇ 𝐓ᴏ 𝐎ᴜʀ 𝐆ʀᴏᴜᴘ .</b> {PREMIUM_HEART}{PREMIUM_FIRE}\n'
         f'{PREMIUM_SPARKLE} <b>𝐍ᴀᴍᴇ</b> ✧ {user.mention}\n'
         f'{PREMIUM_SPARKLE} <b>𝐈ᴅ</b> ✧ <code>{user.id}</code>\n'
         f'{PREMIUM_SPARKLE} <b>𝐔sᴇʀɴᴀᴍᴇ</b> ✧ {username}'
