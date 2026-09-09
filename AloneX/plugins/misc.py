@@ -96,12 +96,28 @@ async def update_timer(length=10):
                     chat_id=chat_id,
                     message_id=message_id,
                     reply_markup=buttons.controls(
-                        chat_id=chat_id, timer=timer, remove=remove, autoplay=await db.get_autoplay(chat_id)
+                        chat_id=chat_id, timer=timer, remove=remove
                     ),
                 )
             except Exception:
                 pass
 
+
+# Voice-chat participants seen on the previous poll.
+vc_seen = {}
+
+async def _participant_id(participant):
+    return getattr(participant, "user_id", None) or getattr(participant, "id", None)
+
+async def _participant_mention(participant):
+    uid = await _participant_id(participant)
+    if not uid:
+        return None
+    try:
+        user = await app.get_users(uid)
+        return user.mention
+    except Exception:
+        return None
 
 async def vc_watcher(sleep=15):
     while True:
@@ -109,7 +125,37 @@ async def vc_watcher(sleep=15):
         for chat_id in list(db.active_calls):
             client = await db.get_assistant(chat_id)
             media = queue.get_current(chat_id)
-            participants = await client.get_participants(chat_id)
+            if not media:
+                continue
+            try:
+                participants = await client.get_participants(chat_id)
+                current_ids = set()
+                for p in participants:
+                    uid = await _participant_id(p)
+                    if uid:
+                        current_ids.add(uid)
+
+                # Don't announce everyone already present when monitoring starts.
+                previous = vc_seen.get(chat_id)
+                vc_seen[chat_id] = current_ids
+
+                if config.VC_JOIN_NOTIFY and previous is not None:
+                    assistant_ids = {getattr(c, "id", None) for c in userbot.clients}
+                    joined = [
+                        p for p in participants
+                        if (await _participant_id(p)) in (current_ids - previous)
+                        and (await _participant_id(p)) not in assistant_ids
+                    ]
+                    for participant in joined:
+                        mention = await _participant_mention(participant)
+                        if mention:
+                            await app.send_message(
+                                chat_id,
+                                f"🎙️ <b>{mention}</b> joined the VC!\n🎵 Enjoy the music.",
+                            )
+            except Exception:
+                pass
+
             if len(participants) < 2 and media.time > 30:
                 _lang = await lang.get_lang(chat_id)
                 try:
@@ -126,7 +172,7 @@ async def vc_watcher(sleep=15):
                     pass
 
 
-if config.AUTO_END:
+if config.AUTO_END or config.VC_JOIN_NOTIFY:
     tasks.append(asyncio.create_task(vc_watcher()))
 if config.AUTO_LEAVE:
     tasks.append(asyncio.create_task(auto_leave()))

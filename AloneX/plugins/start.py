@@ -6,7 +6,7 @@
 import asyncio
 from pyrogram import enums, filters, types
 
-from AloneX import app, config, db, lang
+from AloneX import app, config, db, lang, logger
 from AloneX.helpers import buttons, utils
 
 
@@ -77,10 +77,32 @@ async def _new_member(_, message: types.Message):
     if message.chat.type != enums.ChatType.SUPERGROUP:
         return await message.chat.leave()
 
-    await asyncio.sleep(3)
-    for member in message.new_chat_members:
-        if member.id == app.id:
-            if await db.is_chat(message.chat.id):
-                return
+    await asyncio.sleep(2)
+    human_members = [member for member in message.new_chat_members if member.id != app.id]
+
+    # Register the group when the bot itself is added.
+    if any(member.id == app.id for member in message.new_chat_members):
+        if not await db.is_chat(message.chat.id):
             await utils.send_log(message, True)
             await db.add_chat(message.chat.id)
+
+    if not config.WELCOME_ENABLED or not human_members:
+        return
+
+    for member in human_members:
+        try:
+            mention = member.mention
+            text = config.WELCOME_TEXT.format(
+                mention=mention,
+                first_name=member.first_name or "there",
+                username=f"@{member.username}" if member.username else "",
+                user_id=member.id,
+                chat_title=message.chat.title or "this group",
+                app_name=app.name,
+            )
+            if config.WELCOME_IMG:
+                await app.send_photo(message.chat.id, config.WELCOME_IMG, caption=text)
+            else:
+                await app.send_message(message.chat.id, text)
+        except Exception as e:
+            logger.error(f"Welcome error in {message.chat.id}: {e}")
