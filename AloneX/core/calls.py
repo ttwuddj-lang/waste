@@ -88,7 +88,7 @@ class TgCall(PyTgCalls):
                     media.duration,
                     media.user,
                 )
-                keyboard = buttons.controls(chat_id, autoplay=await db.get_autoplay(chat_id))
+                keyboard = buttons.controls(chat_id)
                 try:
                     await message.edit_media(
                         media=InputMediaPhoto(
@@ -132,27 +132,27 @@ class TgCall(PyTgCalls):
 
 
     async def play_next(self, chat_id: int) -> None:
-        # If the queue has no next item, optionally create one from the
-        # current song's YouTube search context before removing the current item.
         current = queue.get_current(chat_id)
-        if current and await db.get_autoplay(chat_id) and queue.get_next(chat_id, check=True) is None:
-            related = await yt.related(current, video=current.video)
-            if related:
-                related.user = current.user
-                queue.add(chat_id, related)
-
         media = queue.get_next(chat_id)
-        if media is not None:
-            try:
-                if media.message_id:
-                    await app.delete_messages(
-                        chat_id=chat_id,
-                        message_ids=media.message_id,
-                        revoke=True,
-                    )
-                    media.message_id = 0
-            except Exception:
-                pass
+
+        # When the normal queue is empty, keep the VC alive and find
+        # another track automatically (YouTube-style autoplay).
+        if not media and config.AUTO_PLAY and current and await db.get_call(chat_id):
+            media = await yt.related(current, 0, video=current.video)
+            if media:
+                queue.add(chat_id, media)
+                media = queue.get_current(chat_id)
+
+        try:
+            old_message_id = current.message_id if current else 0
+            if old_message_id:
+                await app.delete_messages(
+                    chat_id=chat_id,
+                    message_ids=old_message_id,
+                    revoke=True,
+                )
+        except Exception:
+            pass
 
         if not media:
             return await self.stop(chat_id)
@@ -198,7 +198,4 @@ class TgCall(PyTgCalls):
             await client.start()
             self.clients.append(client)
             await self.decorators(client)
-            # VC participant listeners are registered after all plugins load
-            # in AloneX.__main__.py. Keeping registration there avoids the
-            # plugin import-order race during startup.
         logger.info("PyTgCalls client(s) started.")
